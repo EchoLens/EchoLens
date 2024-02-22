@@ -1,18 +1,37 @@
-package controllers;
+package com.projects.echoLens.controllers;
 
+import com.projects.echoLens.dtos.RegisterRequestV1DTO;
+import com.projects.echoLens.dtos.ResponseV1DTO;
+import com.projects.echoLens.enums.StatusEnum;
+import com.projects.echoLens.services.UserServiceV1;
 import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.media.Content;
 import io.swagger.v3.oas.annotations.media.Schema;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
+import javax.inject.Named;
+import javax.inject.Singleton;
+
+import jakarta.validation.Valid;
 import models.*;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
+import static com.projects.echoLens.EchoLensConstants.ECHOLENS_VI_ROOT;
+import static com.projects.echoLens.EchoLensConstants.REGISTER_PATH;
+import static com.projects.echoLens.Spring.ErrorCodes.APPLICATION_EXEC_CODE;
+import static com.projects.echoLens.Spring.ErrorCodes.APPLICATION_EXEC_MESSAGE;
+
 @RestController
-@RequestMapping("/api/v1/echolens")
+@Named
+@Singleton
+@RequestMapping(ECHOLENS_VI_ROOT)
 public class EchoLensController {
 
-    @PostMapping("/register")
+    @Autowired
+    private UserServiceV1 userServiceV1;
+
     @Operation(summary = "Register a new user",
             description = "Register a new user with username, email, and password.",
             responses = {
@@ -20,9 +39,26 @@ public class EchoLensController {
                             content = @Content(schema = @Schema(implementation = UserResponse.class))),
                     @ApiResponse(responseCode = "400", description = "Invalid input")
             })
-    public ResponseEntity<UserResponse> registerUser(@RequestBody UserRequest userRequest) {
+    @PostMapping(REGISTER_PATH)
+    public ResponseEntity<ResponseV1DTO> registerUser(@Parameter(name = "userRegisterRequest", required = true) @Valid
+                                                         @RequestBody final RegisterRequestV1DTO registerRequest) {
         // Logic to handle user registration
-        return ResponseEntity.ok(new UserResponse(/* userId, username, email */));
+        ResponseV1DTO response;
+        try {
+            response = userServiceV1.userRegister(registerRequest);
+
+            // 假设成功注册用户会返回特定的成功代码
+            if (response.getCode().equals(StatusEnum.valueOf("SUCCESS"))) {
+                return ResponseEntity.ok(response);
+            } else {
+                return ResponseEntity.badRequest().body(response);
+            }
+        } catch (Exception e) {
+            response = new ResponseV1DTO();
+            response.setCode(APPLICATION_EXEC_CODE);
+            response.setMessage(APPLICATION_EXEC_MESSAGE);
+            return ResponseEntity.internalServerError().body(response);
+        }
     }
 
     @PostMapping("/login")
